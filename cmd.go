@@ -36,6 +36,10 @@ func (i *IrcTerm) handleInput(cmd string) error {
 	return e
 }
 
+func (i *IrcTerm) cmdQuote(args string) error {
+	return i.i.sendLine(args)
+}
+
 func (i *IrcTerm) cmdMsg(args string) error {
 	rcpt, msg := strsplit(args, " ")
 	i.i.lastRcpt = rcpt
@@ -65,6 +69,10 @@ func (i *IrcTerm) cmdOtrStart(args string) error {
 func (i *IrcTerm) cmdJoin(args string) error {
 	i.i.lastRcpt = args
 	return i.i.sendLine(fmt.Sprintf("JOIN %s", args))
+}
+
+func (i *IrcTerm) cmdNick(args string) error {
+	return i.i.sendLine(fmt.Sprintf("NICK %s", args))
 }
 
 func (i *IrcTerm) cmdPart(args string) error {

@@ -13,6 +13,8 @@ import (
 
 type ircOpts struct {
 	tls, tlsInsecure bool
+	sasl             bool
+	saslCert         string
 	showGuff         bool
 	proxyAuth        bool
 	proxy            string
@@ -55,8 +57,9 @@ func (i *Irc) Server(server, port string) {
 func (i *Irc) Proxy(proxy string) {
 	if proxy == "tor" {
 		i.useTor()
+	} else {
+		i.opts.proxy = proxy
 	}
-	i.opts.proxy = proxy
 }
 
 func (i *Irc) useTor() {
@@ -65,13 +68,18 @@ func (i *Irc) useTor() {
 	i.opts.proxyUsername, i.opts.proxyPassword = torIsolateAuth()
 }
 
-func (i *Irc) UseTls() {
-	i.opts.tls = true
+func (i *Irc) UseTls(b bool) {
+	i.opts.tls = b
 }
 
 func (i *Irc) UseTlsInsecurely() {
 	i.opts.tls = true
 	i.opts.tlsInsecure = true
+}
+
+func (i *Irc) UseSasl(cert string) {
+	i.opts.sasl = true
+	i.opts.saslCert = cert
 }
 
 func (i *Irc) Nick(nick string) {
@@ -105,6 +113,11 @@ func (i *Irc) Connect() error {
 			i.conn.Close()
 			return e
 		}
+	}
+	if i.opts.sasl {
+		i.sendLine("CAP REQ :sasl")
+		i.sendLine("AUTHENTICATE EXTERNAL")
+		i.sendLine("AUTHENTICATE +")
 	}
 	i.sendLine(fmt.Sprintf("USER %s * localhost :%s", i.opts.nick, i.opts.nick))
 	i.sendLine(fmt.Sprintf("NICK %s", i.opts.nick))
@@ -149,6 +162,13 @@ func (i *Irc) doTLS() error {
 		ServerName:         i.opts.server,
 		CipherSuites:       cipherSuites,
 		InsecureSkipVerify: i.opts.tlsInsecure,
+	}
+	if i.opts.sasl {
+		sasl, e := tls.LoadX509KeyPair(i.opts.saslCert+".crt", i.opts.saslCert+".key")
+		if e != nil {
+			return e
+		}
+		cfg.Certificates = []tls.Certificate{sasl}
 	}
 	tconn := tls.Client(i.conn, cfg)
 	if e := tconn.Handshake(); e != nil {

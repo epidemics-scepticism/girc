@@ -7,8 +7,8 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"syscall"
 	"sync"
+	"syscall"
 
 	"./terminal"
 )
@@ -71,6 +71,8 @@ func (i *IrcTerm) handleMsg() {
 			}
 			if f, ok := i.msgs[string(m.cmd)]; ok {
 				f(m)
+			} else {
+				i.msgNotice(m)
 			}
 		}
 	}
@@ -238,7 +240,7 @@ func NewIrcTerm(i *Irc) (*IrcTerm, error) {
 		Reader: os.Stdin,
 		Writer: os.Stdout,
 	}
-	var p string = ">"
+	var p string = "> "
 	t := &IrcTerm{
 		t: terminal.NewTerminal(rw, p),
 		o: state,
@@ -246,12 +248,14 @@ func NewIrcTerm(i *Irc) (*IrcTerm, error) {
 		p: p,
 	}
 	t.cmds = map[string]func(string) error{
-		"msg":  t.cmdMsg,
-		"join": t.cmdJoin,
-		"quit": t.cmdQuit,
-		"part": t.cmdPart,
-		"ctcp": t.cmdCtcp,
-		"help": t.cmdHelp,
+		"msg":   t.cmdMsg,
+		"join":  t.cmdJoin,
+		"quit":  t.cmdQuit,
+		"part":  t.cmdPart,
+		"ctcp":  t.cmdCtcp,
+		"help":  t.cmdHelp,
+		"nick":  t.cmdNick,
+		"quote": t.cmdQuote,
 	}
 	t.msgs = map[string]func(m *msg){
 		"PING":    t.msgPing,
@@ -281,8 +285,9 @@ func (i *IrcTerm) Stop() error {
 		i.i.out <- fmt.Sprintf("ERROR: %v", e)
 	}
 	if i.d != nil {
-		close(i.d)
+		tmp := i.d
 		i.d = nil
+		close(tmp)
 	}
 	i.s.Wait()
 	return i.i.Close()
@@ -298,6 +303,8 @@ func (i *IrcTerm) Start() error {
 	i.s.Add(1)
 	go i.handleInfo()
 	i.s.Add(1)
+	defer i.s.Wait()
+	defer close(i.d)
 	for {
 		s, e := i.t.ReadLine()
 		if e != nil {
