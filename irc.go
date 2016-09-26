@@ -118,6 +118,7 @@ func (i *Irc) Connect() error {
 		i.sendLine("CAP REQ :sasl")
 		i.sendLine("AUTHENTICATE EXTERNAL")
 		i.sendLine("AUTHENTICATE +")
+		i.sendLine("CAP END")
 	}
 	i.sendLine(fmt.Sprintf("USER %s * localhost :%s", i.opts.nick, i.opts.nick))
 	i.sendLine(fmt.Sprintf("NICK %s", i.opts.nick))
