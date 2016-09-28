@@ -122,7 +122,11 @@ func (i *IrcTerm) msgJoin(m *msg) {
 		out = append(out, m.printTimestamp()...)
 		out = append(out, m.printNUH()...)
 		out = append(out, []byte("has joined ")...)
-		out = append(out, colourise(m.content, "white")...)
+		if len(m.rcpt) > 0 {
+			out = append(out, colourise(m.rcpt, "white")...)
+		} else {
+			out = append(out, colourise(m.content, "white")...)
+		}
 		i.printLine(out)
 	}
 }
