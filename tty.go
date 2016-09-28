@@ -105,13 +105,24 @@ func (i *IrcTerm) msgPrivmsg(m *msg) {
 	i.printLine(out)
 }
 
+func (i *IrcTerm) msgNick(m *msg) {
+	if i.i.opts.showGuff {
+		var out []byte
+		out = append(out, m.printTimestamp()...)
+		out = append(out, colourise(m.nick, "yellow")...)
+		out = append(out, []byte(" is now known as ")...)
+		out = append(out, colourise(m.content, "yellow")...)
+		i.printLine(out)
+	}
+}
+
 func (i *IrcTerm) msgJoin(m *msg) {
 	if i.i.opts.showGuff {
 		var out []byte
 		out = append(out, m.printTimestamp()...)
 		out = append(out, m.printNUH()...)
 		out = append(out, []byte("has joined ")...)
-		out = append(out, m.content...)
+		out = append(out, colourise(m.content, "white")...)
 		i.printLine(out)
 	}
 }
@@ -122,7 +133,12 @@ func (i *IrcTerm) msgPart(m *msg) {
 		out = append(out, m.printTimestamp()...)
 		out = append(out, m.printNUH()...)
 		out = append(out, []byte("has left ")...)
-		out = append(out, m.rcpt...)
+		out = append(out, colourise(m.rcpt, "white")...)
+		if len(m.content) > 0 {
+			out = append(out, []byte(" [")...)
+			out = append(out, colourise(m.content, "white")...)
+			out = append(out, []byte("]")...)
+		}
 		i.printLine(out)
 	}
 }
@@ -132,33 +148,41 @@ func (i *IrcTerm) msgQuit(m *msg) {
 		var out []byte
 		out = append(out, m.printTimestamp()...)
 		out = append(out, m.printNUH()...)
-		out = append(out, []byte("has quit.")...)
+		out = append(out, []byte("has quit")...)
+		if len(m.content) > 0 {
+			out = append(out, []byte(" [")...)
+			out = append(out, colourise(m.content, "white")...)
+			out = append(out, []byte("]")...)
+		}
 		i.printLine(out)
 	}
 }
 
-func (i *IrcTerm) msgNotice(m *msg) {
+func (i *IrcTerm) msgGeneric(m *msg, c string) {
 	var out []byte
 	out = append(out, m.printTimestamp()...)
 	out = append(out, m.printFromTo()...)
-	out = append(out, colourise(m.content, "yellow")...)
+	out = append(out, colourise(m.cmd, c)...)
+	out = append(out, []byte(" ")...)
+	if len(m.args) > 0 {
+		out = append(out, []byte("[")...)
+		out = append(out, colourise(m.args, c)...)
+		out = append(out, []byte("] ")...)
+	}
+	out = append(out, colourise(m.content, c)...)
 	i.printLine(out)
+}
+
+func (i *IrcTerm) msgNotice(m *msg) {
+	i.msgGeneric(m, "yellow")
 }
 
 func (i *IrcTerm) msgError(m *msg) {
-	var out []byte
-	out = append(out, m.printTimestamp()...)
-	out = append(out, m.printFromTo()...)
-	out = append(out, colourise(m.content, "magenta")...)
-	i.printLine(out)
+	i.msgGeneric(m, "magenta")
 }
 
 func (i *IrcTerm) msgInfo(m *msg) {
-	var out []byte
-	out = append(out, m.printTimestamp()...)
-	out = append(out, m.printFromTo()...)
-	out = append(out, colourise(m.content, "white")...)
-	i.printLine(out)
+	i.msgGeneric(m, "white")
 }
 
 var escape *terminal.EscapeCodes = &terminal.EscapeCodes{}
@@ -266,6 +290,7 @@ func NewIrcTerm(i *Irc) (*IrcTerm, error) {
 		"NOTICE":  t.msgNotice,
 		"ERROR":   t.msgError,
 		"INFO":    t.msgInfo,
+		"NICK":    t.msgNick,
 	}
 	escape = t.t.Escape
 	t.d = make(chan bool, 1)

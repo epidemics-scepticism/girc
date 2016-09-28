@@ -195,7 +195,7 @@ func (i *Irc) parse(line []byte) *msg {
 	m := &msg{}
 	m.enc = false
 	delta := time.Now().UTC().Sub(i.timeStamp) / time.Second
-	m.timestamp = []byte(fmt.Sprintf("%04d", delta))
+	m.timestamp = []byte(fmt.Sprintf("%03d", delta % 1000))
 	if bytes.HasPrefix(line, []byte{':'}) {
 		line = line[1:]
 		m.host, line = split(line, []byte{' '})
